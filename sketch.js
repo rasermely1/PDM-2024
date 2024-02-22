@@ -5,7 +5,7 @@ let gameDuration = 30;
 let startTime;
 let gameRunning = false;
 let spiderImg;
-let deadSpider
+let deadSpider;
 
 function preload() {
   spiderImg = loadImage('assets/spider.png');
@@ -16,7 +16,6 @@ function setup() {
   createCanvas(800, 600);
   startTime = millis();
   gameRunning = true;
-  // Initialize bugs
   for (let i = 0; i < 5; i++) {
     bugs.push(new Bug(random(width), random(height)));
   }
