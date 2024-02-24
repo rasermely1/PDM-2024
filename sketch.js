@@ -8,7 +8,7 @@ let spiderImg;
 let deadSpider;
 
 function preload() {
-  spiderImg = loadImage('assets/spider.png');
+  spiderImg = loadImage('assets/Spider.png');
   deadSpider = loadImage('assets/deadSpider.png');
 }
 
