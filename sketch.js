@@ -1,11 +1,15 @@
+// Make sure to include Tone.js in your HTML or as an import if using modules
+
 let bugs = [];
 let squishMarks = []; 
 let score = 0;
 let gameDuration = 30;
 let startTime;
 let gameRunning = false;
-let spiderImg;
-let deadSpider;
+let spiderImg, deadSpider;
+
+// Audio components
+let squishSynth, missSynth, backgroundMusic, endGameSynth;
 
 function preload() {
   spiderImg = loadImage('assets/Spider.png');
@@ -14,60 +18,107 @@ function preload() {
 
 function setup() {
   createCanvas(800, 600);
-  startTime = millis();
-  gameRunning = true;
-  for (let i = 0; i < 5; i++) {
-    bugs.push(new Bug(random(width), random(height)));
+  setupAudio();
+  loadBackgroundMusic('assets/backgroundMusic.mp3');
+}
+
+function setupAudio() {
+  // For squishing bugs
+  squishSynth = new Tone.Synth({
+    oscillator: { type: "sine" }
+  }).toDestination();
+
+  // For missing a bug
+  missSynth = new Tone.MembraneSynth().toDestination();
+
+  // End game sound
+  endGameSynth = new Tone.PolySynth(Tone.Synth, {
+    envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+  }).toDestination();
+}
+
+// Loads and sets up the background music for looping
+function loadBackgroundMusic(url) {
+  backgroundMusic = new Tone.Player({
+    url: url,
+    loop: true
+  }).toDestination();
+
+  // Wait for all buffers to load before enabling game start
+  Tone.loaded().then(() => {
+    console.log("All audio files loaded");
+    // Enable start game functionality here, e.g., display a start button
+  });
+}
+
+// Function to start the game, intended to be called by a user action like clicking a 'Start Game' button
+function startGame() {
+  if (Tone.context.state !== 'running') {
+    Tone.start().then(() => {
+      console.log("Audio context started");
+      backgroundMusic.start();
+      // Reset or initialize game variables
+      gameRunning = true;
+      score = 0;
+      bugs = [];
+      squishMarks = [];
+      startTime = millis();
+      for (let i = 0; i < 5; i++) {
+        bugs.push(new Bug(random(width), random(height)));
+      }
+    });
   }
 }
 
 function draw() {
+  if (!gameRunning) return;
+
   background(220);
   let currentTime = millis();
   let timeLeft = gameDuration - ((currentTime - startTime) / 1000);
 
   if (timeLeft <= 0) {
     gameRunning = false;
-    timeLeft = 0;
     displayEndGame();
   }
 
-  if (gameRunning) {
-    updateBugSpeed();
-    textSize(32);
-    fill(0);
-    text(`Time: ${timeLeft.toFixed(1)}`, 10, 30);
-    text(`Score: ${score}`, 10, 70);
+  updateBugSpeed();
+  displayHUD(timeLeft);
 
-    // Update and display bugs
-    for (let i = bugs.length - 1; i >= 0; i--) {
-      bugs[i].move();
-      bugs[i].display();
-      if (bugs[i].isSquished) {
-        bugs.splice(i, 1);
-        score++;
-        // Optionally, make the game harder by adding a new bug or increasing speed
-      }
-    }
-    fill(0, 255, 0); // Set fill to green
-    squishMarks.forEach(mark => {
-      image(deadSpider, mark.x, mark.y, 20, 20); // Draw a green circle
-    });
+  for (let i = bugs.length - 1; i >= 0; i--) {
+    bugs[i].move();
+    bugs[i].display();
   }
+
+  squishMarks.forEach(mark => {
+    image(deadSpider, mark.x, mark.y, 20, 20);
+  });
 }
 
 function mousePressed() {
-  for (let i = 0; i < bugs.length; i++) {
-    bugs[i].checkSquish(mouseX, mouseY);
+  if (!gameRunning) return;
+  for (let i = bugs.length - 1; i >= 0; i--) {
+    if (bugs[i].checkSquish(mouseX, mouseY)) {
+      squishSynth.triggerAttackRelease("C4", "8n");
+      score++;
+      squishMarks.push({x: bugs[i].x, y: bugs[i].y});
+      bugs.splice(i, 1); // Remove squished bug
+    }
   }
 }
 
 function updateBugSpeed() {
-  // Define how the score affects the bug speed
-  let speedIncrease = score; // Adjust this value to balance the game difficulty
+  let speedIncrease = score;
   bugs.forEach(bug => {
-    bug.speed = 2 + speedIncrease; // Update each bug's speed based on the current score
+    bug.speed = 2 + speedIncrease * 0.05;
   });
+}
+
+function displayHUD(timeLeft) {
+  textSize(32);
+  fill(0);
+  text(`Time: ${timeLeft.toFixed(1)}`, 10, 30);
+  text(`Score: ${score}`, 10, 70);
 }
 
 function displayEndGame() {
@@ -75,6 +126,8 @@ function displayEndGame() {
   textAlign(CENTER, CENTER);
   text("Game Over!", width / 2, height / 2);
   text(`Final Score: ${score}`, width / 2, height / 2 + 70);
+  backgroundMusic.stop();
+  endGameSynth.triggerAttackRelease(["C4", "E4", "G4"], "2n");
 }
 
 class Bug {
@@ -84,7 +137,7 @@ class Bug {
     this.size = 30;
     this.dirX = random(-1, 1);
     this.dirY = random(-1, 1);
-    this.speed = 2; 
+    this.speed = 2;
   }
 
   move() {
@@ -114,6 +167,7 @@ class Bug {
   checkSquish(mx, my) {
     let d = dist(mx, my, this.x, this.y);
     if (d < this.size) {
+      squishSynth.triggerAttackRelease("C4", "8n");
       squishMarks.push({x: this.x, y: this.y}); // Leave a mark where the bug was squished
       
       // Respawn the bug at a new location with a new random direction
@@ -124,6 +178,9 @@ class Bug {
       
       // Increment the score
       score++;
+    }
+    else{
+      missSynth.triggerAttackRelease("A1", "8n");
     }
   }
 }
