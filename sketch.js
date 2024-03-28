@@ -1,14 +1,11 @@
-// Make sure to include Tone.js in your HTML or as an import if using modules
-
 let bugs = [];
-let squishMarks = []; 
+let squishMarks = [];
 let score = 0;
 let gameDuration = 30;
 let startTime;
 let gameRunning = false;
 let spiderImg, deadSpider;
 
-// Audio components
 let squishSynth, missSynth, backgroundMusic, endGameSynth;
 
 function preload() {
@@ -20,44 +17,48 @@ function setup() {
   createCanvas(800, 600);
   setupAudio();
   loadBackgroundMusic('assets/backgroundMusic.mp3');
+  createStartButton();
 }
 
 function setupAudio() {
-  // For squishing bugs
   squishSynth = new Tone.Synth({
     oscillator: { type: "sine" }
   }).toDestination();
 
-  // For missing a bug
   missSynth = new Tone.MembraneSynth().toDestination();
 
-  // End game sound
   endGameSynth = new Tone.PolySynth(Tone.Synth, {
     envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
   }).toDestination();
 }
 
-// Loads and sets up the background music for looping
 function loadBackgroundMusic(url) {
   backgroundMusic = new Tone.Player({
     url: url,
     loop: true
   }).toDestination();
 
-  // Wait for all buffers to load before enabling game start
   Tone.loaded().then(() => {
     console.log("All audio files loaded");
-    // Enable start game functionality here, e.g., display a start button
   });
 }
 
-// Function to start the game, intended to be called by a user action like clicking a 'Start Game' button
+function createStartButton() {
+  const startButton = createButton('Start Game');
+  startButton.position(10, height + 10);
+
+  startButton.elt.addEventListener('click', function() {
+    startGame();
+    gameRunning = true;
+  });
+}
+
+
 function startGame() {
-  if (Tone.context.state !== 'running') {
+  if (Tone.context.state !== 'runing') {
     Tone.start().then(() => {
       console.log("Audio context started");
       backgroundMusic.start();
-      // Reset or initialize game variables
       gameRunning = true;
       score = 0;
       bugs = [];
@@ -144,7 +145,6 @@ class Bug {
     this.x += this.dirX * this.speed;
     this.y += this.dirY * this.speed;
   
-    // Wrap the bug around the screen to appear from the other side
     if (this.x > width) this.x = 0;
     if (this.x < 0) this.x = width;
     if (this.y > height) this.y = 0;
@@ -153,30 +153,27 @@ class Bug {
   
 
   display() {
-    // Calculate the angle of movement
     let angle = atan2(this.dirY, this.dirX);
   
-    push(); // Start a new drawing state
-    translate(this.x, this.y); // Move to bug's location
-    rotate(angle + HALF_PI); // Rotate to the direction of movement; adjust as needed
-    imageMode(CENTER); // Ensure the image is centered on its position
-    image(spiderImg, 0, 0, this.size, this.size); // Draw the spider image
-    pop(); // Restore original state
+    push();
+    translate(this.x, this.y);
+    rotate(angle + HALF_PI);
+    imageMode(CENTER);
+    image(spiderImg, 0, 0, this.size, this.size);
+    pop();
   }
 
   checkSquish(mx, my) {
     let d = dist(mx, my, this.x, this.y);
     if (d < this.size) {
       squishSynth.triggerAttackRelease("C4", "8n");
-      squishMarks.push({x: this.x, y: this.y}); // Leave a mark where the bug was squished
+      squishMarks.push({x: this.x, y: this.y});
       
-      // Respawn the bug at a new location with a new random direction
       this.x = random(width);
       this.y = random(height);
       this.dirX = random(-1, 1);
       this.dirY = random(-1, 1);
       
-      // Increment the score
       score++;
     }
     else{
