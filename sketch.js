@@ -5,6 +5,8 @@ let gameDuration = 30;
 let startTime;
 let gameRunning = false;
 let spiderImg, deadSpider;
+let serial;
+let latestData = "waiting for data";
 
 let squishSynth, missSynth, backgroundMusic, endGameSynth;
 
@@ -13,11 +15,22 @@ function preload() {
   deadSpider = loadImage('assets/deadSpider.png');
 }
 
+function gotData() {
+  let currentString = serial.readLine();  // read the incoming string
+  trim(currentString);                    // trim off any trailing whitespace
+  if (!currentString) return;             // if the string is empty, do nothing
+  latestData = currentString;             // save it for the draw method
+}
+
 function setup() {
   createCanvas(800, 600);
   setupAudio();
   loadBackgroundMusic('assets/backgroundMusic.mp3');
   createStartButton();
+
+  serial = new p5.SerialPort();  // Create a serial port object
+  serial.open('/dev/tty.usbmodem1411');  // Replace with your Arduino's serial port
+  serial.on('data', gotData);
 }
 
 function setupAudio() {
@@ -96,10 +109,13 @@ function draw() {
   });
 }
 
-function mousePressed() {
+function joystickPressed() {
+  let joystickCoords = latestData.split(",");
+  let joystickX = map(joystickCoords[0], 0, 1023, 0, width);
+  let joystickY = map(joystickCoords[1], 0, 1023, 0, height);
   if (!gameRunning) return;
   for (let i = bugs.length - 1; i >= 0; i--) {
-    if (bugs[i].checkSquish(mouseX, mouseY)) {
+    if (bugs[i].checkSquish(joystickX, joystickY)) {
       squishSynth.triggerAttackRelease("C4", "8n");
       score++;
       squishMarks.push({x: bugs[i].x, y: bugs[i].y});
